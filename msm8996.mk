@@ -29,6 +29,46 @@ $(call inherit-product, vendor/zuk/msm8996-common/msm8996-common-vendor.mk)
 # Inherit some Custom Stuff.
 $(call inherit-product, vendor/amitwh/common/amit_common.mk)
 
+# add openGapps if required
+$(call inherit-product, vendor/opengapps/build/opengapps-packages.mk)
+
+# Open Gapps PRODUCT_PACKAGES
+GAPPS_VARIANT := full
+GAPPS_FORCE_PACKAGE_OVERRIDES := true
+GAPPS_FORCE_MMS_OVERRIDES := true
+GAPPS_FORCE_DIALER_OVERRIDES := true
+#GAPPS_FORCE_PIXEL_LAUNCHER := true
+
+GAPPS_EXCLUDED_PACKAGES += \
+	Hangouts \
+	Books \
+	Videos 
+
+PRODUCT_PACKAGES += \
+	GoogleContacts \
+	LatinImeGoogle \
+	StorageManagerGoogle \
+	TagGoogle \
+	GoogleVrCore \
+	CloudPrint2 \
+	EditorsDocs \
+	Drive \
+	FitnessPrebuilt \
+	PrebuiltKeep \
+        Music2 \
+	Newsstand \
+	PlayGames \
+	PixelLauncher \
+	EditorsSheets \
+	EditorsSlides \
+	talkback \
+	CarrierServices \
+	GoogleEarth \
+	GCS \
+	GoogleHindiIME \
+	TranslatePrebuilt     
+    
+
 # Add on-screen navigation keys
 PRODUCT_PROPERTY_OVERRIDES += \
     qemu.hw.mainkeys=0 
