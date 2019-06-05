@@ -601,6 +601,9 @@ on property:sys.boot_completed=1
     start wlan-sh
     start qcom-post-boot
     start bt-sh
+    
+on property:init.svc.recovery=running
+    start qcom-post-boot    
 
 on property:ro.vendor.bt.bdaddr_path=/data/vendor/bluetooth/bdaddr
     # Correct perms for bdaddr
