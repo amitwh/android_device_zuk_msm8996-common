@@ -146,6 +146,7 @@ PRODUCT_PACKAGES += \
 PRODUCT_PACKAGES += \
     fstab.qcom \
     init.bt.sh \
+    init.qcom.post_boot.sh \
     init.msm.usb.configfs.rc \
     init.qcom.rc \
     init.qcom.sh \
