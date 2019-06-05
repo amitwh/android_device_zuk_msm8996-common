@@ -29,6 +29,9 @@ $(call inherit-product, vendor/zuk/msm8996-common/msm8996-common-vendor.mk)
 # Inherit some Custom Stuff.
 $(call inherit-product, vendor/amitwh/common/amit_common.mk)
 
+# Add on-screen navigation keys
+PRODUCT_PROPERTY_OVERRIDES += \
+    qemu.hw.mainkeys=0 
 
 # Overlays
 DEVICE_PACKAGE_OVERLAYS += \
