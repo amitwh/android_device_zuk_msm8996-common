@@ -43,7 +43,7 @@ on early-init
 on init
     # Create cgroup mount point for memory
     mkdir /sys/fs/cgroup/memory/bg 0750 root system
-    write /sys/fs/cgroup/memory/bg/memory.swappiness 140
+    write /sys/fs/cgroup/memory/bg/memory.swappiness 100
     write /sys/fs/cgroup/memory/bg/memory.move_charge_at_immigrate 1
     chown root system /sys/fs/cgroup/memory/bg/tasks
     chmod 0660 /sys/fs/cgroup/memory/bg/tasks
@@ -79,8 +79,11 @@ on late-fs
     # boot time fs tune
     write /sys/block/sda/queue/iostats 0
     write /sys/block/sda/queue/scheduler cfq
+    write /sys/block/sda/queue/read_ahead_kb 2048
     write /sys/block/sda/queue/iosched/slice_idle 0
     write /sys/block/sda/queue/nr_requests 256
+    write /sys/block/dm-0/queue/read_ahead_kb 2048
+    write /sys/block/dm-1/queue/read_ahead_kb 2048
 
 # msm specific files that need to be created on /data
 on post-fs-data
@@ -579,6 +582,13 @@ service wlan-sh /vendor/bin/init.wlan.sh
     group root
     disabled
     oneshot
+    
+service qcom-post-boot /vendor/bin/init.qcom.post_boot.sh
+    class late_start
+    user root
+    group root system wakelock graphics
+    disabled
+    oneshot
 
 service bt-sh /vendor/bin/init.bt.sh
     class late_start
@@ -589,6 +599,7 @@ service bt-sh /vendor/bin/init.bt.sh
 
 on property:sys.boot_completed=1
     start wlan-sh
+    start qcom-post-boot
     start bt-sh
 
 on property:ro.vendor.bt.bdaddr_path=/data/vendor/bluetooth/bdaddr
