@@ -30,7 +30,7 @@ on init
 
     # Drop write bit from cpu_max_freq so that libqti-perfd can't set it
     # chmod 0444 /sys/module/msm_performance/parameters/cpu_max_freq
-    
+
     # Add a cpuset for the camera daemon
     # we want all cores for camera
     mkdir /dev/cpuset/camera-daemon
@@ -47,22 +47,6 @@ on boot
     write /dev/cpuset/system-background/cpus 0-3
     write /dev/cpuset/top-app/cpus 0-3
     write /dev/cpuset/restricted/cpus 0-3
- 
-    # Don't reset entire SoC on individual subsystem crash
-    write /sys/bus/msm_subsys/devices/subsys0/restart_level "related"
-    write /sys/bus/msm_subsys/devices/subsys1/restart_level "related"
-    write /sys/bus/msm_subsys/devices/subsys2/restart_level "related"
-    write /sys/bus/msm_subsys/devices/subsys3/restart_level "related"
-    write /sys/bus/msm_subsys/devices/subsys4/restart_level "related"
-    write /sys/bus/msm_subsys/devices/subsys5/restart_level "related"
-
-on late-fs
-    write /sys/block/sda/queue/iostats 0
-    write /sys/block/sda/queue/iosched/slice_idle 0
-    write /sys/block/sda/queue/read_ahead_kb 2048
-    write /sys/block/sda/queue/nr_requests 256
-    write /sys/block/dm-0/queue/read_ahead_kb 2048
-    write /sys/block/dm-1/queue/read_ahead_kb 2048    
 
 on charger
     wait /dev/block/platform/soc/${ro.boot.bootdevice}
@@ -77,19 +61,6 @@ on charger
     write /sys/devices/system/cpu/cpu3/online 0
     write /sys/module/msm_thermal/parameters/enabled "N"
     start thermal-engine
-
-    
-on property:sys.boot_completed=1
-
-    # Set I/O scheduler
-    setprop sys.io.scheduler "bfq"
-
-    # Update cpusets now that boot is complete and we want better load balancing
-    write /dev/cpuset/top-app/cpus 0-3
-    write /dev/cpuset/foreground/cpus 0-2
-    write /dev/cpuset/background/cpus 0
-    write /dev/cpuset/system-background/cpus 0-2
-    write /dev/cpuset/restricted/cpus 0-1
 
 service charger /charger
     class charger
