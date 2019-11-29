@@ -152,6 +152,8 @@ PRODUCT_PACKAGES += \
     fstab.qcom \
     init.qcom.rc \
     init.qcom.sh \
+    init.qcom.post_boot.sh \
+    init.qcom.early_boot.sh \
     init.qcom.power.rc \
     init.qcom.usb.rc \
     ueventd.qcom.rc
