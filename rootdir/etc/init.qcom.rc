@@ -43,7 +43,7 @@ on early-init
 on init
     # Create cgroup mount point for memory
     mkdir /sys/fs/cgroup/memory/bg 0750 root system
-    write /sys/fs/cgroup/memory/bg/memory.swappiness 140
+    write /sys/fs/cgroup/memory/bg/memory.swappiness 100
     write /sys/fs/cgroup/memory/bg/memory.move_charge_at_immigrate 1
     chown root system /sys/fs/cgroup/memory/bg/tasks
     chmod 0660 /sys/fs/cgroup/memory/bg/tasks
@@ -74,7 +74,7 @@ on late-fs
     start vendor.gralloc-2-0
 
     # Mount RW partitions which need run fsck
-    mount_all /vendor/etc/fstab.qcom --late
+    mount_all /vendor/etc/fstab.qcom --late    
 
     # boot time fs tune
     write /sys/block/sda/queue/iostats 0
@@ -338,6 +338,37 @@ on boot
 
 on property:sys.boot_completed=1
 
+    start wlan-sh
+    start bt-sh
+    start qcom-post-boot
+    
+    # Enable ZRAM on boot_complete
+    #swapon_all /vendor/etc/fstab.qcom
+
+    # CPE fw_name used by sound trigger HAL
+    chown media audio /sys/kernel/wcd_cpe0/fw_name
+    
+        # end boot time fs tune
+    write /sys/block/sda/queue/read_ahead_kb 512
+    write /sys/block/sda/queue/nr_requests 128
+    write /sys/block/dm-0/queue/read_ahead_kb 128
+    write /sys/block/dm-1/queue/read_ahead_kb 128
+    write /sys/block/sda/queue/iostats 1
+
+  # setprop sys.io.scheduler "cfq"
+
+    # Set the default IRQ affinity to the silver cluster.
+    write /proc/irq/default_smp_affinity 3
+     
+    # Update cpusets now that boot is complete and we want better load balancing
+#     write /dev/cpuset/top-app/cpus 0-3
+#     write /dev/cpuset/foreground/cpus 0-2
+#     write /dev/cpuset/background/cpus 0
+#     write /dev/cpuset/system-background/cpus 0-2
+#     write /dev/cpuset/restricted/cpus 0-1
+    
+    # CPE fw_name used by sound trigger HAL
+    chown media audio /sys/kernel/wcd_cpe0/fw_name
 
 on property:persist.env.fastdorm.enabled=true
     setprop persist.radio.data_no_toggle 1
@@ -580,28 +611,6 @@ service bt-sh /vendor/bin/init.bt.sh
     group bluetooth
     disabled
     oneshot
-
-on property:sys.boot_completed=1
-    start wlan-sh
-    start qcom-post-boot
-    start bt-sh
-
-    # Enable ZRAM on boot_complete
-    #swapon_all /vendor/etc/fstab.qcom
-
-    # CPE fw_name used by sound trigger HAL
-    chown media audio /sys/kernel/wcd_cpe0/fw_name
-
-    # Set I/O scheduler
-    setprop sys.io.scheduler "bfq"
-
-    # Update cpusets now that boot is complete and we want better load balancing
-    write /dev/cpuset/top-app/cpus 0-3
-    write /dev/cpuset/foreground/cpus 0-2
-    write /dev/cpuset/background/cpus 0
-    write /dev/cpuset/system-background/cpus 0-2
-    write /dev/cpuset/restricted/cpus 0-1
-
 
 on property:init.svc.recovery=running
     start qcom-post-boot

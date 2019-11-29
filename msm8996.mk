@@ -69,10 +69,6 @@ $(call inherit-product, vendor/amitwh/common/amit_common.mk)
 # 	TranslatePrebuilt
 
 
-# Add on-screen navigation keys
-PRODUCT_PROPERTY_OVERRIDES += \
-    qemu.hw.mainkeys=0
-
 # Overlays
 DEVICE_PACKAGE_OVERLAYS += \
     $(LOCAL_PATH)/overlay \

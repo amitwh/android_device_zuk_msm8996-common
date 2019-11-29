@@ -231,7 +231,8 @@ function configure_zram_parameters() {
     # Zram disk - 75% for Go devices.
     # For 512MB Go device, size = 384MB, set same for Non-Go.
     # For 1GB Go device, size = 768MB, set same for Non-Go.
-    # For >=2GB Non-Go device, size = 1GB
+    # For 2GB and 3GB Non-Go device, size = 1GB
+    # For 4GB and 6GB Non-Go device, size = 2GB
     # And enable lz4 zram compression for Go targets.
 
     if [ "$low_ram" == "true" ]; then
@@ -243,9 +244,10 @@ function configure_zram_parameters() {
             echo 402653184 > /sys/block/zram0/disksize
         elif [ $MemTotal -le 1048576 ]; then
             echo 805306368 > /sys/block/zram0/disksize
-        else
-            # Set Zram disk size=1GB for >=2GB Non-Go targets.
+        elif [ $MemTotal -le 3145728 ]; then
             echo 1073741824 > /sys/block/zram0/disksize
+        elif [ $MemTotal -le 6291456 ]; then
+            echo 2147483648 > /sys/block/zram0/disksize
         fi
         mkswap /dev/block/zram0
         swapon /dev/block/zram0 -p 32758
@@ -409,7 +411,7 @@ else
           *)
             #Set PPR parameters for all other targets.
             echo $set_almk_ppr_adj > /sys/module/process_reclaim/parameters/min_score_adj
-            echo 1 > /sys/module/process_reclaim/parameters/enable_process_reclaim
+            echo 0 > /sys/module/process_reclaim/parameters/enable_process_reclaim
             echo 50 > /sys/module/process_reclaim/parameters/pressure_min
             echo 70 > /sys/module/process_reclaim/parameters/pressure_max
             echo 30 > /sys/module/process_reclaim/parameters/swap_opt_eff
@@ -2316,18 +2318,6 @@ case "$target" in
                 esac
             ;;
         esac
-
-        case "$soc_id" in
-             "386" )
-
-                # Start Host based Touch processing
-                case "$hw_platform" in
-                    "QRD" )
-                    start_hbtp
-                ;;
-                esac
-	    ;;
-	esac
     ;;
 esac
 
@@ -2391,8 +2381,11 @@ case "$target" in
             echo 20 > /proc/sys/kernel/sched_small_wakee_task_load
 
             # cpuset settings
-            echo 0-3 > /dev/cpuset/background/cpus
-            echo 0-3 > /dev/cpuset/system-background/cpus
+            echo 0-7 > /dev/cpuset/top-app/cpus
+            echo 4-7 > /dev/cpuset/foreground/boost/cpus
+            echo 0-2,4-7 > /dev/cpuset/foreground/cpus
+            echo 0-1 > /dev/cpuset/background/cpus
+            echo 0-2 > /dev/cpuset/system-background/cpus
 
             # disable thermal bcl hotplug to switch governor
             echo 0 > /sys/module/msm_thermal/core_control/enabled
@@ -2461,6 +2454,12 @@ case "$target" in
             # re-enable thermal and BCL hotplug
             echo 1 > /sys/module/msm_thermal/core_control/enabled
 
+            #Add-begin-HMI_M6100_A01-422,lijiang@longcheer.com,2018-10-12
+            #Enable input boost configuration
+            echo "0:1401600" > /sys/module/cpu_boost/parameters/input_boost_freq
+            echo 40 > /sys/module/cpu_boost/parameters/input_boost_ms
+            #Add-end-HMI_M6100_A01-422
+
             # Set Memory parameters
             configure_memory_parameters
 
@@ -2496,13 +2495,14 @@ case "$target" in
 
             # Start cdsprpcd only for sdm660 and disable for sdm630
             start vendor.cdsprpcd
-
-            # Start Host based Touch processing
-                case "$hw_platform" in
-                        "MTP" | "Surf" | "RCM" | "QRD" )
-                        start_hbtp
-                        ;;
-                esac
+##D2SP&F7A has no hbtp feature
+#            # Start Host based Touch processing
+#                case "$hw_platform" in
+#                        "MTP" | "Surf" | "RCM" | "QRD" )
+#                        start_hbtp
+#                        ;;
+#                esac
+#end
             ;;
         esac
         #Apply settings for sdm630 and Tahaa
@@ -2693,7 +2693,7 @@ case "$target" in
         fi
 
         case "$soc_id" in
-            "336" | "337" | "347" | "360" | "393" )
+            "336" | "337" | "347" | "360" )
 
             # Start Host based Touch processing
             case "$hw_platform" in
@@ -3340,8 +3340,14 @@ esac
 
 case "$target" in
     "msm8996")
-        # disable thermal hotplug to switch governor
+        # disable thermal bcl hotplug to switch governor
         echo 0 > /sys/module/msm_thermal/core_control/enabled
+        echo -n disable > /sys/devices/soc/soc:qcom,bcl/mode
+        bcl_hotplug_mask=`cat /sys/devices/soc/soc:qcom,bcl/hotplug_mask`
+        echo 0 > /sys/devices/soc/soc:qcom,bcl/hotplug_mask
+        bcl_soc_hotplug_mask=`cat /sys/devices/soc/soc:qcom,bcl/hotplug_soc_mask`
+        echo 0 > /sys/devices/soc/soc:qcom,bcl/hotplug_soc_mask
+        echo -n enable > /sys/devices/soc/soc:qcom,bcl/mode
         # set sync wakee policy tunable
         echo 1 > /proc/sys/kernel/sched_prefer_sync_wakee_to_waker
         # configure governor settings for little cluster
@@ -3357,33 +3363,37 @@ case "$target" in
         echo 19000 > /sys/devices/system/cpu/cpu0/cpufreq/interactive/min_sample_time
         echo 79000 > /sys/devices/system/cpu/cpu0/cpufreq/interactive/max_freq_hysteresis
         echo 300000 > /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq
-        echo 0 > /sys/devices/system/cpu/cpu0/cpufreq/interactive/ignore_hispeed_on_notif
+        echo 1 > /sys/devices/system/cpu/cpu0/cpufreq/interactive/ignore_hispeed_on_notif
         # online CPU2
         echo 1 > /sys/devices/system/cpu/cpu2/online
         # configure governor settings for big cluster
         echo "interactive" > /sys/devices/system/cpu/cpu2/cpufreq/scaling_governor
         echo 1 > /sys/devices/system/cpu/cpu2/cpufreq/interactive/use_sched_load
         echo 1 > /sys/devices/system/cpu/cpu2/cpufreq/interactive/use_migration_notif
-        echo "19000 1400000:39000 1700000:39000 2100000:79000" > /sys/devices/system/cpu/cpu2/cpufreq/interactive/above_hispeed_delay
+        echo "19000 1400000:39000 1700000:19000 2100000:79000" > /sys/devices/system/cpu/cpu2/cpufreq/interactive/above_hispeed_delay
         echo 90 > /sys/devices/system/cpu/cpu2/cpufreq/interactive/go_hispeed_load
         echo 20000 > /sys/devices/system/cpu/cpu2/cpufreq/interactive/timer_rate
         echo 1248000 > /sys/devices/system/cpu/cpu2/cpufreq/interactive/hispeed_freq
         echo 1 > /sys/devices/system/cpu/cpu2/cpufreq/interactive/io_is_busy
-        echo "85 1500000:90 1800000:95 2100000:99" > /sys/devices/system/cpu/cpu2/cpufreq/interactive/target_loads
+        echo "85 1500000:90 1800000:70 2100000:95" > /sys/devices/system/cpu/cpu2/cpufreq/interactive/target_loads
         echo 19000 > /sys/devices/system/cpu/cpu2/cpufreq/interactive/min_sample_time
-        echo 39000 > /sys/devices/system/cpu/cpu2/cpufreq/interactive/max_freq_hysteresis
+        echo 79000 > /sys/devices/system/cpu/cpu2/cpufreq/interactive/max_freq_hysteresis
         echo 300000 > /sys/devices/system/cpu/cpu2/cpufreq/scaling_min_freq
-        echo 0 > /sys/devices/system/cpu/cpu2/cpufreq/interactive/ignore_hispeed_on_notif
-        # re-enable thermal hotplug
+        echo 1 > /sys/devices/system/cpu/cpu2/cpufreq/interactive/ignore_hispeed_on_notif
+        # re-enable thermal and BCL hotplug
         echo 1 > /sys/module/msm_thermal/core_control/enabled
+        echo -n disable > /sys/devices/soc/soc:qcom,bcl/mode
+        echo $bcl_hotplug_mask > /sys/devices/soc/soc:qcom,bcl/hotplug_mask
+        echo $bcl_soc_hotplug_mask > /sys/devices/soc/soc:qcom,bcl/hotplug_soc_mask
+        echo -n enable > /sys/devices/soc/soc:qcom,bcl/mode
         # input boost configuration
         echo "0:1324800 2:1324800" > /sys/module/cpu_boost/parameters/input_boost_freq
         echo 40 > /sys/module/cpu_boost/parameters/input_boost_ms
         # Setting b.L scheduler parameters
         echo 0 > /proc/sys/kernel/sched_boost
         echo 1 > /proc/sys/kernel/sched_migration_fixup
-        echo 95 > /proc/sys/kernel/sched_downmigrate
-        echo 90 > /proc/sys/kernel/sched_upmigrate
+        echo 45 > /proc/sys/kernel/sched_downmigrate
+        echo 45 > /proc/sys/kernel/sched_upmigrate
         echo 400000 > /proc/sys/kernel/sched_freq_inc_notify
         echo 400000 > /proc/sys/kernel/sched_freq_dec_notify
         echo 3 > /proc/sys/kernel/sched_spill_nr_run
@@ -3435,7 +3445,7 @@ case "$target" in
 	fi
 	echo N > /sys/module/lpm_levels/parameters/sleep_disabled
         # Starting io prefetcher service
-        # start iop
+        start iop
 
         # Set Memory parameters
         configure_memory_parameters
@@ -3644,20 +3654,20 @@ case "$target" in
 	# configure governor settings for silver cluster
 	echo "schedutil" > /sys/devices/system/cpu/cpufreq/policy0/scaling_governor
 	echo 0 > /sys/devices/system/cpu/cpufreq/policy0/schedutil/rate_limit_us
-	echo 1209600 > /sys/devices/system/cpu/cpufreq/policy0/schedutil/hispeed_freq
+	echo 1075200 > /sys/devices/system/cpu/cpufreq/policy0/schedutil/hispeed_freq
 	echo 576000 > /sys/devices/system/cpu/cpufreq/policy0/scaling_min_freq
 	echo 1 > /sys/devices/system/cpu/cpufreq/policy0/schedutil/pl
 
 	# configure governor settings for gold cluster
 	echo "schedutil" > /sys/devices/system/cpu/cpufreq/policy4/scaling_governor
 	echo 0 > /sys/devices/system/cpu/cpufreq/policy4/schedutil/rate_limit_us
-	echo 1612800 > /sys/devices/system/cpu/cpufreq/policy4/schedutil/hispeed_freq
+	echo 1248000 > /sys/devices/system/cpu/cpufreq/policy4/schedutil/hispeed_freq
 	echo 1 > /sys/devices/system/cpu/cpufreq/policy4/schedutil/pl
 
 	# configure governor settings for gold+ cluster
 	echo "schedutil" > /sys/devices/system/cpu/cpufreq/policy7/scaling_governor
 	echo 0 > /sys/devices/system/cpu/cpufreq/policy7/schedutil/rate_limit_us
-	echo 1612800 > /sys/devices/system/cpu/cpufreq/policy7/schedutil/hispeed_freq
+	echo 1286400 > /sys/devices/system/cpu/cpufreq/policy7/schedutil/hispeed_freq
 	echo 1 > /sys/devices/system/cpu/cpufreq/policy7/schedutil/pl
 
 	# configure input boost settings
@@ -3683,7 +3693,7 @@ case "$target" in
 	    do
 		echo "bw_hwmon" > $cpubw/governor
 		echo 40 > $cpubw/polling_interval
-		echo "2288 4577 7110 9155 12298 14236 15258" > $cpubw/bw_hwmon/mbps_zones
+		echo "2288 3051 6149 8132 10162 11856" > $cpubw/bw_hwmon/mbps_zones
 		echo 4 > $cpubw/bw_hwmon/sample_ms
 		echo 50 > $cpubw/bw_hwmon/io_percent
 		echo 20 > $cpubw/bw_hwmon/hist_memory
@@ -3692,14 +3702,13 @@ case "$target" in
 		echo 0 > $cpubw/bw_hwmon/guard_band_mbps
 		echo 250 > $cpubw/bw_hwmon/up_scale
 		echo 1600 > $cpubw/bw_hwmon/idle_mbps
-		echo 14236 > $cpubw/max_freq
 	    done
 
 	    for llccbw in $device/*cpu-llcc-ddr-bw/devfreq/*cpu-llcc-ddr-bw
 	    do
 		echo "bw_hwmon" > $llccbw/governor
 		echo 40 > $llccbw/polling_interval
-		echo "1720 2929 3879 5931 6881 7980" > $llccbw/bw_hwmon/mbps_zones
+		echo "1720 2929 4943 5931 6881 7980" > $llccbw/bw_hwmon/mbps_zones
 		echo 4 > $llccbw/bw_hwmon/sample_ms
 		echo 80 > $llccbw/bw_hwmon/io_percent
 		echo 20 > $llccbw/bw_hwmon/hist_memory
@@ -3708,7 +3717,6 @@ case "$target" in
 		echo 0 > $llccbw/bw_hwmon/guard_band_mbps
 		echo 250 > $llccbw/bw_hwmon/up_scale
 		echo 1600 > $llccbw/bw_hwmon/idle_mbps
-		echo 6881 > $llccbw/max_freq
 	    done
 
 	    for npubw in $device/*npu-npu-ddr-bw/devfreq/*npu-npu-ddr-bw
@@ -3716,7 +3724,7 @@ case "$target" in
 		echo 1 > /sys/devices/virtual/npu/msm_npu/pwr
 		echo "bw_hwmon" > $npubw/governor
 		echo 40 > $npubw/polling_interval
-		echo "1720 2929 3879 5931 6881 7980" > $npubw/bw_hwmon/mbps_zones
+		echo "1720 2929 4943 5931 6881 7980" > $npubw/bw_hwmon/mbps_zones
 		echo 4 > $npubw/bw_hwmon/sample_ms
 		echo 80 > $npubw/bw_hwmon/io_percent
 		echo 20 > $npubw/bw_hwmon/hist_memory
@@ -4110,7 +4118,7 @@ case "$target" in
         start mpdecision
         echo 512 > /sys/block/mmcblk0/bdi/read_ahead_kb
     ;;
-    "msm8994" | "msm8992" | "msm8996" | "msm8998" | "sdm660" | "apq8098_latv" | "sdm845" | "sdm710" | "msmnile" | "talos")
+    "msm8994" | "msm8992" | "msm8996" | "msm8998" | "sdm660" | "apq8098_latv" | "sdm845" | "sdm710" | "msmnile" | "msmsteppe")
         setprop vendor.post_boot.parsed 1
     ;;
     "apq8084")

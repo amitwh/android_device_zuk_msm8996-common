@@ -136,7 +136,7 @@ TARGET_HW_DISK_ENCRYPTION := true
 TARGET_KEYMASTER_WAIT_FOR_QSEE := true
 
 # Exclude serif fonts for saving system.img size.
-EXCLUDE_SERIF_FONTS := true
+# EXCLUDE_SERIF_FONTS := true
 
 # Filesystem
 TARGET_FS_CONFIG_GEN := $(VENDOR_PATH)/config.fs
@@ -174,7 +174,7 @@ TARGET_USES_MKE2FS := true
 # Power
 TARGET_HAS_NO_WLAN_STATS := true
 TARGET_TAP_TO_WAKE_NODE := "/sys/devices/virtual/touch/tp_dev/gesture_on"
-TARGET_USES_INTERACTION_BOOST := true
+#TARGET_USES_INTERACTION_BOOST := true
 
 # QCOM
 BOARD_USES_QCOM_HARDWARE := true
